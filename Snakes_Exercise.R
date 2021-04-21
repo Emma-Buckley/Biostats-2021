@@ -1,0 +1,63 @@
+#Emma Buckley
+#Snakes Exercise
+
+library(tidyverse)
+snakes <- read_csv("~/Biostatistics/Second part of R/Biostats-2021/data/snakes.csv")
+snakes$day = as.factor(snakes$day)
+
+#The first thing we do is to create some summaries of the data
+
+snakes.summary <- snakes %>% 
+  group_by(day, snake) %>% 
+  summarise(mean_openings = mean(openings),
+            sd_openings = sd(openings)) %>% 
+  ungroup()
+snakes.summary 
+
+#To fix this problem, let us ignore the grouping by both snake and day
+snakes.summary <- snakes %>% 
+  group_by(day) %>% 
+  summarise(mean_openings = mean(openings),
+            sd_openings = sd(openings)) %>% 
+  ungroup()
+snakes.summary
+
+install.packages("Rmisc")
+library(Rmisc)
+snakes.summary2 <- summarySE(data = snakes, measurevar = "openings", groupvars = c("day"))
+
+#Now we turn to some visual data summaries.
+
+ggplot(data = snakes, aes(x = day, y = openings)) +
+  geom_segment(data = snakes.summary2, aes(x = day, xend = day, y = openings - ci, yend = openings + ci, colour = day),
+               size = 2.0, linetype = "solid", show.legend = F) +
+  geom_boxplot(aes(fill = day), alpha = 0.6, show.legend = F) + 
+  geom_jitter(width = 0.05)
+
+#ANOVA model to test these hypotheses
+snakes.aov <- aov(openings ~ day + snake, data = snakes)
+summary(snakes.aov)
+
+
+par(mfrow = c(2, 2))
+# Checking assumptions...
+# make a histogram of the residuals;
+# they must be normal
+snakes.res <- residuals(snakes.aov)
+hist(snakes.res, col = "red")
+
+# make a plot of residuals and the fitted values;
+# # they must be normal and homoscedastic
+plot(fitted(snakes.aov), residuals(snakes.aov), col = "red")
+
+snakes.tukey <- TukeyHSD(snakes.aov, which = "day", conf.level = 0.90)
+plot(snakes.tukey, las = 1, col = "red")
+
+#Own plot:This graph shows the amount of snakes released over four days
+
+ggplot(data = snakes, aes(x = day, y = openings, fill = "red")) +
+  geom_bar(stat ="identity") +
+  labs(x = "Day", y = "Openings",
+       title = "Amount of releases per day") +
+  theme(panel.border = element_blank(),
+        legend.position = "none")
